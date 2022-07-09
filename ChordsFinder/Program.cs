@@ -20,14 +20,14 @@ void PlayMidiFile(string fileName)
     }
 }
 
-bool isPlay = true;
+bool isPlay = false;
 string key = Console.ReadLine();
 string scale = Console.ReadLine();
 
 (List<string> possibleChords, string[] currentScale) = MusicGenerator.GeneratePossibleChords(key, scale);
-Console.WriteLine("currentScale:");
-currentScale.ToList().ForEach(Console.WriteLine);
-Console.WriteLine("possibleChords:");
+Console.WriteLine("Current Scale:");
+Console.WriteLine(string.Join(" ", currentScale.ToList()));
+Console.WriteLine("Possible Chords:");
 possibleChords.ForEach(Console.WriteLine);
 
 string[] progression = MusicGenerator.GenerateProgression(possibleChords);

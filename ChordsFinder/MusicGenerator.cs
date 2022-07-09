@@ -61,6 +61,7 @@ namespace ChordsFinder
 
         static int[] simpleChords = { 0, 1, 3, 5, 9 };
         static int[] complexChords = { 0, 1, 3, 4, 5, 8, 9, 12, 13 };
+        static int[] myWanted = { 1, 2, 5, 7, 9, 12, 13 };
 
         #endregion
 
