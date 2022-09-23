@@ -8,7 +8,7 @@ namespace ChordsFinder
 {
     internal class MusicGenerator
     {
-        static string[] notes = new string[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        internal static string[] notes = new string[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
         #region scaleTypes
 
@@ -23,10 +23,11 @@ namespace ChordsFinder
             new int[] { 1, 2, 2, 2, 2, 2, 1 },
             new int[] { 2, 1, 2, 2, 1, 3, 1 },
             new int[] { 2, 1, 2, 2, 2, 2, 1 },
+            new int[] { 1, 3, 1, 2, 1, 3, 1 },
         };
 
-        static string[] scaleNames = { "ionian", "dorian", "phrygian", "lydian", "mixolydian",
-            "aeolian", "locrian", "neapolitan", "harmonicMinor", "melodicMinor" };
+        static internal string[] scaleNames = { "ionian", "dorian", "phrygian", "lydian", "mixolydian",
+            "aeolian", "locrian", "neapolitan", "harmonicMinor", "melodicMinor", "arabic" };
 
         #endregion
 
@@ -64,6 +65,14 @@ namespace ChordsFinder
         static int[] myWanted = { 1, 2, 5, 7, 9, 12, 13 };
 
         #endregion
+
+        public struct NoteAndLength
+        {
+            public string note;
+            public int octave;
+            public int length;
+            public int channel;
+        }
 
         internal static (List<string> possibleChords, string[] currentScale) GeneratePossibleChords(string key, string scale)
         {
@@ -110,7 +119,7 @@ namespace ChordsFinder
                             chordOffset += chordTypes[j][n];
                         }
                     }
-                    if (temp.All(b => b.Equals(true)) && complexChords.Contains(j)) //simple chords can be turned off any time
+                    if (temp.All(b => b.Equals(true))) // && simpleChords.Contains(j)) //simple chords can be turned off any time
                     {
                         //Console.WriteLine(currentScale[i] + " " + chordNames[j]);
                         possibleChords.Add(currentScale[i] + " " + chordNames[j]);
@@ -133,12 +142,13 @@ namespace ChordsFinder
             return -1;
         }
 
-        static internal string[] GenerateProgression(List<string> possibleChords)
+        static internal NoteAndLength[] GenerateProgression(List<string> possibleChords)
         {
-            int[] randNumbers = new int[4];
             Random rnd = new Random();
+            int[] randNumbers = new int[5];
+            int[] lengths = { 1, 1, 2, 1, 2 };
 
-            string[] progression = new string[4];
+            NoteAndLength[] progression = new NoteAndLength[5];
 
             //filling up randNumbers array with -1s so that its default value wouldnt be 0s
             for (int i = 0; i < randNumbers.Length; i++)
@@ -170,10 +180,94 @@ namespace ChordsFinder
             //assigning the random chords to the progression
             for (int i = 0; i < progression.Length; i++)
             {
-                progression[i] = possibleChords[randNumbers[i]];
+                progression[i].note = possibleChords[randNumbers[i]];
+                progression[i].length = lengths[i];
+                progression[i].channel = 0;
             }
 
             return progression;
+        }
+
+        static internal NoteAndLength[] GenerateMelody(string[] currentScale)
+        {
+            Random rnd = new Random();
+            List<int> lengths = new List<int>();
+            double maxLength = 4;
+
+            while (maxLength != 0)
+            {
+                int temp = rnd.Next(1, 5);
+                while (1.0 / Math.Pow(2, temp) > maxLength)
+                {
+                    temp = rnd.Next(1, 5);
+                }
+                lengths.Add((int)Math.Pow(2, temp));
+                maxLength -= 1.0 / Math.Pow(2, temp);
+            }
+
+
+            int[] randNumbers = new int[lengths.Count]; //progressions length times number of notes on a chord
+            NoteAndLength[] melody = new NoteAndLength[lengths.Count];
+
+            for (int i = 0; i < randNumbers.Length; i++)
+            {
+                randNumbers[i] = -1;
+            }
+
+            for (int i = 0; i < randNumbers.Length; i++)
+            {
+                if (i == 0)
+                    randNumbers[i] = rnd.Next(currentScale.Length);
+                else if (i == randNumbers.Length - 1)
+                    randNumbers[i] = 0;
+                else
+                {
+                    randNumbers[i] = rnd.Next(currentScale.Length);
+                    while (randNumbers[i - 1] == randNumbers[i])
+                    {
+                        randNumbers[i] = rnd.Next(currentScale.Length);
+                    }
+                }
+            }
+
+            for (int i = 0; i < melody.Length; i++)
+            {
+                melody[i].note = currentScale[randNumbers[i]];
+                melody[i].octave = 2;
+                melody[i].length = lengths[i];
+                melody[i].channel = 1;
+            }
+
+            return melody;
+        }
+    
+        static internal NoteAndLength[] GenerateBassLine(NoteAndLength[] progression)
+        {
+            NoteAndLength[] bassLine = new NoteAndLength[progression.Length];
+
+            for (int i = 0; i < bassLine.Length; i++)
+            {
+                if (i % 2 == 0)
+                {
+                    int rootOfProgression = FindScale(progression[i].note.Substring(0, 2).Contains(" ") ? progression[i].note.Substring(0, 1) : progression[i].note.Substring(0, 2));
+                    int indexOfChordType = Array.IndexOf(chordNames, progression[i].note.Substring(0, 2).Contains(" ") ?
+                        progression[i].note.Substring(2, progression[i].note.Length - 2) : progression[i].note.Substring(3, progression[i].note.Length - 3));
+                    //assigning the second note of the current chord to bassline[i]
+                    bassLine[i].note = notes[(rootOfProgression + chordTypes[indexOfChordType][0]) % 12];
+                    bassLine[i].octave = -1;
+                    bassLine[i].length = progression[i].length;
+                    progression[i].channel = 2;
+                }
+                if (i % 2 == 1)
+                {
+                    bassLine[i].note = progression[i].note.Substring(0, 2).Contains(" ") ? progression[i].note.Substring(0, 1) : progression[i].note.Substring(0, 2);
+                    bassLine[i].octave = -1;
+                    bassLine[i].length = progression[i].length;
+                    progression[i].channel = 2;
+                }
+            }
+
+            return bassLine;
         }
     }
 }

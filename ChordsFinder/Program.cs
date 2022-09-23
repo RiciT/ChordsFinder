@@ -20,9 +20,11 @@ void PlayMidiFile(string fileName)
     }
 }
 
-bool isPlay = false;
-string key = Console.ReadLine();
-string scale = Console.ReadLine();
+bool isPlay = true;
+Console.WriteLine("The key of the song: ");
+string key = "B";//Console.ReadLine();
+Console.WriteLine("Scales: " + string.Join(", ", MusicGenerator.scaleNames) + "\nThe scale of the song: ");
+string scale = "ionian"; //Console.ReadLine();
 
 (List<string> possibleChords, string[] currentScale) = MusicGenerator.GeneratePossibleChords(key, scale);
 Console.WriteLine("Current Scale:");
@@ -30,11 +32,33 @@ Console.WriteLine(string.Join(" ", currentScale.ToList()));
 Console.WriteLine("Possible Chords:");
 possibleChords.ForEach(Console.WriteLine);
 
-string[] progression = MusicGenerator.GenerateProgression(possibleChords);
+MusicGenerator.NoteAndLength[] progression = MusicGenerator.GenerateProgression(possibleChords);
 Console.WriteLine("Chord progression:");
-progression.ToList().ForEach(Console.WriteLine);
+for (int i = 0; i < progression.Length; i++)
+{
+    Console.WriteLine(progression[i].note);
+}
 
+MusicGenerator.NoteAndLength[] melody = MusicGenerator.GenerateMelody(currentScale);
+Console.WriteLine("Melody:");
+for (int i = 0; i < melody.Length; i++)
+{
+    Console.Write(melody[i].note + " ");
+}
+
+MusicGenerator.NoteAndLength[] bass = MusicGenerator.GenerateBassLine(progression);
+Console.WriteLine();
+Console.WriteLine("Bass Line:");
+for (int i = 0; i < bass.Length; i++)
+{
+    Console.Write(bass[i].note + " ");
+}
+
+MusicGenerator.NoteAndLength[][] musicData = new MusicGenerator.NoteAndLength[3][];
+musicData[0] = melody;
+musicData[1] = progression;
+musicData[2] = bass;
 string fileName = Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.Parent.FullName + "\\" + "test.mid";
-MidiGenerator.GenerateMidiFile(progression, fileName);
+MidiGenerator.GenerateMidiFile(fileName, musicData);
 
 if (isPlay) PlayMidiFile(fileName);

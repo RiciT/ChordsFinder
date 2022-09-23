@@ -8,55 +8,142 @@ namespace ChordsFinder
 {
     internal class MidiGenerator
     {
-        static internal void GenerateMidiFile(string[] progression, string fileName)
+        public struct MidiFormat
+        {
+            public string note;
+            public int octave;
+            public double deltaTime;
+            public bool isOn;
+        }
+
+        static internal void GenerateMidiFile(string fileName, MusicGenerator.NoteAndLength[][] musicData)
+        //MusicGenerator.NoteAndLength[] progression, MusicGenerator.NoteAndLength[] melody, MusicGenerator.NoteAndLength[] bassline)
         {
             char[] secondMTrkChunklen = "00000000".ToCharArray(); //DONT CHANGE THIS
-            string length = "80 83 00"; //60 is quarter note - vlv - variable length value - - - this represents note length
+            //60 is quarter note - vlv - variable length value - - - this represents note length
+            //80 83 00 full note
+            const int fullNote = 384;
             string velocity = "64";
             string releaseVelocity = "40";
             //string trackName = " 00 FF 03 10 4D 49 44 49 20 67 65 6E 65 72 61 74 6F 72 20 31"; //optional track name can be used for secret messages -- delta time - FF 03 - length - name
             const string mthdHeader = "4D 54 68 64";
             const string mtrkHeader = "4D 54 72 6B";
-            const string noteOn = "90";
-            const string noteOff = "80";
+            const string noteOn = "9";
+            const string noteOff = "8";
             const string startingC = "3C";
 
             string progToMidiFormat = "";
 
+            int musicDataLength = 0;
+            for (int i = 0; i < musicData.Length; i++)
+            {
+                musicDataLength += musicData[i].Length;
+            }
 
+            MidiFormat[] midiActions = new MidiFormat[musicDataLength * 2];
+            int[] indeces = new int[musicData.GetLength(0)];
+            double[] queueTimes = new double[musicData.GetLength(0)];
+            double globalTime = 0;
+
+
+            for (int i = 0; i < indeces.Length; i++)
+            {
+                indeces[i] = 0;
+                queueTimes[i] = 0;
+            }
+
+            #region MidiFormat array generation
+            //GENERATING ARRAY TO GENERATE MIDI FROM IT
+            //turning on first notes
+            for (int i = 0; i < musicData.GetLength(0); i++)
+            {
+                midiActions[i].note = musicData[i][0].note;
+                midiActions[i].octave = musicData[i][0].octave;
+                midiActions[i].deltaTime = 0;
+                midiActions[i].isOn = true;
+                indeces[i] = 1;
+                queueTimes[i] = 1.0 / musicData[i][0].length;
+            }
+            
+            for (int i = musicData.GetLength(0); i < midiActions.Length - musicData.GetLength(0); i += 2)
+            {
+                var temp = queueTimes.ToList().IndexOf(queueTimes.Min());
+                midiActions[i].note = musicData[temp][indeces[temp] - 1].note;
+                midiActions[i].octave = musicData[temp][indeces[temp] - 1].octave;
+                midiActions[i].deltaTime = queueTimes[temp] - globalTime;
+                midiActions[i].isOn = false;
+                globalTime += midiActions[i].deltaTime;
+
+                midiActions[i + 1].note = musicData[temp][indeces[temp]].note;
+                midiActions[i + 1].octave = musicData[temp][indeces[temp]].octave;
+                midiActions[i + 1].deltaTime = 0;
+                midiActions[i + 1].isOn = true;
+                queueTimes[temp] += 1.0 / musicData[temp][indeces[temp]].length;
+                indeces[temp]++;
+            }
+            //turning off last notes
+            for (int i = musicData.GetLength(0); i > 0; i--)
+            {
+                midiActions[midiActions.Length - i].note = musicData[musicData.GetLength(0) - i][musicData[musicData.GetLength(0) - i].Length - 1].note;
+                midiActions[midiActions.Length - i].octave = musicData[musicData.GetLength(0) - i][musicData[musicData.GetLength(0) - i].Length - 1].octave;
+                midiActions[midiActions.Length - i].deltaTime = (i == musicData.GetLength(0) ?
+                    1.0 / musicData[musicData.GetLength(0) - i][musicData[musicData.GetLength(0) - i].Length - 1].length : 0);
+                midiActions[midiActions.Length - i].isOn = false;
+            }
+            #endregion
 
             //GENERATING MIDI FILE
-            for (int i = 0; i < progression.Length; i++)
+            for (int i = 0; i < midiActions.Length; i++)
             {
-                int rootNote = MusicGenerator.FindScale(progression[i].Substring(0, 2).Contains(" ") ?
-                        progression[i].Substring(0, 1) : progression[i].Substring(0, 2));
-                //i decided that to glue the chords together better some need to be brought down an octave
-                int noteOffset = rootNote - (rootNote > 7 ? 12 : 0);
-                //current chord meaning the current type of chord without the rootnote
-                int[] currentChord = MusicGenerator.chordTypes[Array.IndexOf(MusicGenerator.chordNames, progression[i].Substring(0, 2).Contains(" ") ?
-                    progression[i].Substring(2, progression[i].Length - 2) : progression[i].Substring(3, progression[i].Length - 3))];
-
-                //first we need to start all of our notes in the current chord by: delta time - noteOn const - note - velocity
-                for (int j = 0; j < currentChord.Length + 1; j++)
+                if (midiActions[i].note.Length > 4)
                 {
-                    progToMidiFormat += " 00" + " " + noteOn + " " + (Convert.ToInt32(startingC, 16) + noteOffset).ToString("X") + " " + velocity;
-                    if (j < currentChord.Length)
+                    int rootNote = MusicGenerator.FindScale(midiActions[i].note.Substring(0, 2).Contains(" ") ?
+                                midiActions[i].note.Substring(0, 1) : midiActions[i].note.Substring(0, 2));
+                    //i decided that to glue the chords together better some need to be brought down an octave - i deleted this feautre for now can be put back eventually
+                    int noteOffset = rootNote;
+                    //current chord meaning the current type of chord without the rootnote
+                    int[] currentChord = MusicGenerator.chordTypes[Array.IndexOf(MusicGenerator.chordNames, midiActions[i].note.Substring(0, 2).Contains(" ") ?
+                        midiActions[i].note.Substring(2, midiActions[i].note.Length - 2) : midiActions[i].note.Substring(3, midiActions[i].note.Length - 3))];
+
+                    if (midiActions[i].isOn)
                     {
-                        noteOffset += currentChord[j];
+                        //first we need to start all of our notes in the current chord by: delta time - noteOn const - note - velocity
+                        for (int j = 0; j < currentChord.Length + 1; j++)
+                        {
+                            progToMidiFormat += " 00" + " " + noteOn + " " + (Convert.ToInt32(startingC, 16) + noteOffset + midiActions[i].octave * 12).ToString("X") + " " + velocity;
+                            if (j < currentChord.Length)
+                            {
+                                noteOffset += currentChord[j];
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //then we need to stop all the notes in the chord by: delta time - noteOff const - note - release velocity
+                        for (int j = 0; j < currentChord.Length + 1; j++)
+                        {
+                            //we only need to consider the length of the first note because after that the delta time is 0 for stopping the other notes
+                            progToMidiFormat += 
+                                " " + (midiActions[i].deltaTime != 0 && j == 0 ? VlvConverter.DecToHexVlv((int)(midiActions[i].deltaTime * fullNote)) : VlvConverter.DecToHexVlv(0))
+                                + " " + noteOff + " " + (Convert.ToInt32(startingC, 16) + noteOffset + midiActions[i].octave * 12).ToString("X") + " " + releaseVelocity;
+                            if (j < currentChord.Length)
+                            {
+                                noteOffset += currentChord[j];
+                            }
+                        }
                     }
                 }
-
-                //resetting note offset
-                noteOffset = rootNote - (rootNote > 7 ? 12 : 0);
-
-                //then we need to stop all the notes in the chord by: delta time - noteOff const - note - release velocity
-                for (int j = 0; j < currentChord.Length + 1; j++)
+                else
                 {
-                    //we only need to consider the length of the first note because after that the delta time is 0 for stopping the other notes
-                    progToMidiFormat += " " + (j == 0 ? length : "00") + " " + noteOff + " " + (Convert.ToInt32(startingC, 16) + noteOffset).ToString("X") + " " + releaseVelocity;
-                    if (j < currentChord.Length)
+                    if (midiActions[i].isOn)
                     {
-                        noteOffset += currentChord[j];
+                        progToMidiFormat += " 00" + " " + noteOn + " " + (Convert.ToInt32(startingC, 16) +
+                            Array.IndexOf(MusicGenerator.notes, midiActions[i].note) + midiActions[i].octave * 12).ToString("X") + " " + velocity;
+                    }
+                    else
+                    {
+                        progToMidiFormat += " " + VlvConverter.DecToHexVlv((int)(midiActions[i].deltaTime * fullNote)) + " " + noteOff + " " + 
+                            (Convert.ToInt32(startingC, 16) + Array.IndexOf(MusicGenerator.notes, midiActions[i].note) + midiActions[i].octave * 12).ToString("X") + " " + releaseVelocity;
                     }
                 }
             }
