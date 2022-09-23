@@ -22,9 +22,9 @@ void PlayMidiFile(string fileName)
 
 bool isPlay = true;
 Console.WriteLine("The key of the song: ");
-string key = "B";//Console.ReadLine();
+string key = Console.ReadLine();
 Console.WriteLine("Scales: " + string.Join(", ", MusicGenerator.scaleNames) + "\nThe scale of the song: ");
-string scale = "ionian"; //Console.ReadLine();
+string scale = Console.ReadLine();
 
 (List<string> possibleChords, string[] currentScale) = MusicGenerator.GeneratePossibleChords(key, scale);
 Console.WriteLine("Current Scale:");
