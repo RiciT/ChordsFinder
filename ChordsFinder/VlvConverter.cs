@@ -20,7 +20,7 @@ namespace ChordsFinder
 
         internal static string DecToBin(int decNum)
         {
-            int largestSmallerPower = 0;
+            /*int largestSmallerPower = 0;
             while (Math.Pow(2, largestSmallerPower + 1) < decNum)
             {
                 largestSmallerPower++;
@@ -30,11 +30,11 @@ namespace ChordsFinder
             for (int i = 0; decNum > 0; i++)
             {
                 binary[i] = decNum % 2;
-                decNum = decNum / 2;
+                decNum = (int)Math.Floor((double)decNum / 2.0);
             }
-            Array.Reverse(binary);
+            Array.Reverse(binary);*/
 
-            return String.Join("", binary);
+            return Convert.ToString(decNum, 2);
         }
 
         internal static int BinToDec(string binNum)

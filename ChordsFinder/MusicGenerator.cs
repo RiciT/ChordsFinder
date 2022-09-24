@@ -70,7 +70,7 @@ namespace ChordsFinder
         {
             public string note;
             public int octave;
-            public int length;
+            public double length;
             public int channel;
         }
 
@@ -119,7 +119,7 @@ namespace ChordsFinder
                             chordOffset += chordTypes[j][n];
                         }
                     }
-                    if (temp.All(b => b.Equals(true))) // && simpleChords.Contains(j)) //simple chords can be turned off any time
+                    if (temp.All(b => b.Equals(true)) && myWanted.Contains(j)) //simple chords can be turned off any time
                     {
                         //Console.WriteLine(currentScale[i] + " " + chordNames[j]);
                         possibleChords.Add(currentScale[i] + " " + chordNames[j]);
@@ -142,13 +142,12 @@ namespace ChordsFinder
             return -1;
         }
 
-        static internal NoteAndLength[] GenerateProgression(List<string> possibleChords)
+        static internal NoteAndLength[] GenerateProgression(List<string> possibleChords, int channel)
         {
             Random rnd = new Random();
-            int[] randNumbers = new int[5];
-            int[] lengths = { 1, 1, 2, 1, 2 };
-
-            NoteAndLength[] progression = new NoteAndLength[5];
+            double[] lengths = { 1, 1, 1, 1 };
+            int[] randNumbers = new int[lengths.Length];
+            NoteAndLength[] progression = new NoteAndLength[lengths.Length];
 
             //filling up randNumbers array with -1s so that its default value wouldnt be 0s
             for (int i = 0; i < randNumbers.Length; i++)
@@ -182,32 +181,84 @@ namespace ChordsFinder
             {
                 progression[i].note = possibleChords[randNumbers[i]];
                 progression[i].length = lengths[i];
-                progression[i].channel = 0;
+                progression[i].channel = channel;
             }
 
             return progression;
         }
 
-        static internal NoteAndLength[] GenerateMelody(string[] currentScale)
+        static internal NoteAndLength[] GenerateMelody(string[] currentScale, NoteAndLength[] progression, bool fitMelodyToChords, bool canSameNotesFollow, int channel)
         {
             Random rnd = new Random();
-            List<int> lengths = new List<int>();
-            double maxLength = 4;
+            int[] lengtharr;
 
-            while (maxLength != 0)
+            if (fitMelodyToChords)
             {
-                int temp = rnd.Next(1, 5);
-                while (1.0 / Math.Pow(2, temp) > maxLength)
+                List<int>[] lengths = new List<int>[progression.Length];
+                for (int i = 0; i < lengths.Length; i++)
                 {
-                    temp = rnd.Next(1, 5);
+                    lengths[i] = new List<int>();
                 }
-                lengths.Add((int)Math.Pow(2, temp));
-                maxLength -= 1.0 / Math.Pow(2, temp);
+                double[] maxLengths = new double[progression.Length];
+
+                for (int i = 0; i < progression.Length; i++)
+                {
+                    maxLengths[i] = 1.0 / progression[i].length;
+                }
+                for (int i = 0; i < maxLengths.Length; i++)
+                {
+                    while (maxLengths[i] != 0)
+                    {
+                        int temp = rnd.Next(1, 5);
+                        while (1.0 / Math.Pow(2, temp) > maxLengths[i])
+                        {
+                            temp = rnd.Next(1, 5);
+                        }
+                        lengths[i].Add((int)Math.Pow(2, temp));
+                        maxLengths[i] -= 1.0 / Math.Pow(2, temp);
+                    }
+                    lengths[i] = lengths[i].OrderBy(x => rnd.Next()).ToList();
+                }
+
+                int lengthsLength = 0;
+                for (int i = 0; i < lengths.Length; i++)
+                {
+                    lengthsLength += lengths[i].Count;
+                }
+
+                lengtharr = new int[0];
+                for (int i = 0; i < lengths.Length; i++)
+                {
+                    lengtharr = lengtharr.Concat(lengths[i].ToArray()).ToArray();
+                }
+            }
+            else
+            {
+                List<int> lengths = new List<int>();
+                double maxLength = 0;
+
+                for (int i = 0; i < progression.Length; i++)
+                {
+                    maxLength += 1.0 / progression[i].length;
+                }
+
+                while (maxLength != 0)
+                {
+                    int temp = rnd.Next(1, 5);
+                    while (1.0 / Math.Pow(2, temp) > maxLength)
+                    {
+                        temp = rnd.Next(1, 5);
+                    }
+                    lengths.Add((int)Math.Pow(2, temp));
+                    maxLength -= 1.0 / Math.Pow(2, temp);
+                }
+                lengths = lengths.OrderBy(x => rnd.Next()).ToList();
+                lengtharr = new int[lengths.Count];
+                lengtharr = lengths.ToArray();
             }
 
-
-            int[] randNumbers = new int[lengths.Count]; //progressions length times number of notes on a chord
-            NoteAndLength[] melody = new NoteAndLength[lengths.Count];
+            int[] randNumbers = new int[lengtharr.Length]; //progressions length times number of notes on a chord
+            NoteAndLength[] melody = new NoteAndLength[lengtharr.Length];
 
             for (int i = 0; i < randNumbers.Length; i++)
             {
@@ -223,7 +274,7 @@ namespace ChordsFinder
                 else
                 {
                     randNumbers[i] = rnd.Next(currentScale.Length);
-                    while (randNumbers[i - 1] == randNumbers[i])
+                    while (randNumbers[i - 1] == randNumbers[i] && !canSameNotesFollow)
                     {
                         randNumbers[i] = rnd.Next(currentScale.Length);
                     }
@@ -234,14 +285,14 @@ namespace ChordsFinder
             {
                 melody[i].note = currentScale[randNumbers[i]];
                 melody[i].octave = 2;
-                melody[i].length = lengths[i];
-                melody[i].channel = 1;
+                melody[i].length = lengtharr[i];
+                melody[i].channel = channel;
             }
 
             return melody;
         }
-    
-        static internal NoteAndLength[] GenerateBassLine(NoteAndLength[] progression)
+
+        static internal NoteAndLength[] GenerateBassLine(NoteAndLength[] progression, int channel)
         {
             NoteAndLength[] bassLine = new NoteAndLength[progression.Length];
 
@@ -256,14 +307,14 @@ namespace ChordsFinder
                     bassLine[i].note = notes[(rootOfProgression + chordTypes[indexOfChordType][0]) % 12];
                     bassLine[i].octave = -1;
                     bassLine[i].length = progression[i].length;
-                    progression[i].channel = 2;
+                    bassLine[i].channel = channel;
                 }
                 if (i % 2 == 1)
                 {
                     bassLine[i].note = progression[i].note.Substring(0, 2).Contains(" ") ? progression[i].note.Substring(0, 1) : progression[i].note.Substring(0, 2);
                     bassLine[i].octave = -1;
                     bassLine[i].length = progression[i].length;
-                    progression[i].channel = 2;
+                    bassLine[i].channel = channel;
                 }
             }
 
