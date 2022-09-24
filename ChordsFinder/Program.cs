@@ -32,14 +32,14 @@ Console.WriteLine(string.Join(" ", currentScale.ToList()));
 Console.WriteLine("Possible Chords:");
 possibleChords.ForEach(Console.WriteLine);
 
-MusicGenerator.NoteAndLength[] progression = MusicGenerator.GenerateProgression(possibleChords, 0);
+MusicGenerator.NoteAndLength[] progression = MusicGenerator.GenerateProgression(possibleChords, new double[] { 1, 2, 2, 2, 1, 2}, 0);
 Console.WriteLine("Chord progression:");
 for (int i = 0; i < progression.Length; i++)
 {
     Console.WriteLine(progression[i].note);
 }
 
-MusicGenerator.NoteAndLength[] melody = MusicGenerator.GenerateMelody(currentScale, progression, true, true, 1);
+MusicGenerator.NoteAndLength[] melody = MusicGenerator.GenerateMelody(currentScale, progression, false, true, 4, 1);
 Console.WriteLine("Melody:");
 for (int i = 0; i < melody.Length; i++)
 {

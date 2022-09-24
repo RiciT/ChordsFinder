@@ -142,10 +142,9 @@ namespace ChordsFinder
             return -1;
         }
 
-        static internal NoteAndLength[] GenerateProgression(List<string> possibleChords, int channel)
+        static internal NoteAndLength[] GenerateProgression(List<string> possibleChords, double[] lengths, int channel)
         {
             Random rnd = new Random();
-            double[] lengths = { 1, 1, 1, 1 };
             int[] randNumbers = new int[lengths.Length];
             NoteAndLength[] progression = new NoteAndLength[lengths.Length];
 
@@ -187,7 +186,7 @@ namespace ChordsFinder
             return progression;
         }
 
-        static internal NoteAndLength[] GenerateMelody(string[] currentScale, NoteAndLength[] progression, bool fitMelodyToChords, bool canSameNotesFollow, int channel)
+        static internal NoteAndLength[] GenerateMelody(string[] currentScale, NoteAndLength[] progression, bool fitMelodyToChords, bool canSameNotesFollow, int maxNoteL,int channel)
         {
             Random rnd = new Random();
             int[] lengtharr;
@@ -209,10 +208,10 @@ namespace ChordsFinder
                 {
                     while (maxLengths[i] != 0)
                     {
-                        int temp = rnd.Next(1, 5);
+                        int temp = rnd.Next(1, maxNoteL);
                         while (1.0 / Math.Pow(2, temp) > maxLengths[i])
                         {
-                            temp = rnd.Next(1, 5);
+                            temp = rnd.Next(1, maxNoteL);
                         }
                         lengths[i].Add((int)Math.Pow(2, temp));
                         maxLengths[i] -= 1.0 / Math.Pow(2, temp);
@@ -244,10 +243,10 @@ namespace ChordsFinder
 
                 while (maxLength != 0)
                 {
-                    int temp = rnd.Next(1, 5);
+                    int temp = rnd.Next(1, maxNoteL);
                     while (1.0 / Math.Pow(2, temp) > maxLength)
                     {
-                        temp = rnd.Next(1, 5);
+                        temp = rnd.Next(1, maxNoteL);
                     }
                     lengths.Add((int)Math.Pow(2, temp));
                     maxLength -= 1.0 / Math.Pow(2, temp);
